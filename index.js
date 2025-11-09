@@ -31,7 +31,7 @@ async function run() {
     const foodCollection = db.collection('foods');
 
     app.get('/foods', async (req, res) => {
-      const cursor = foodCollection.find();
+      const cursor = foodCollection.find().sort({ price: 1 });
       const foods = await cursor.toArray();
       res.send(foods);
     });
