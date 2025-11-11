@@ -72,6 +72,33 @@ async function run() {
       }
     });
 
+    // Get reviews by user email
+    app.get('/reviews/user/:email', async (req, res) => {
+      try {
+        const email = req.params.email;
+        const reviews = await reviewCollection
+          .find({ userEmail: email })
+          .sort({ createdAt: -1 })
+          .toArray();
+        res.send(reviews);
+      } catch (err) {
+        res.status(500).send({ message: 'Error fetching user reviews' });
+      }
+    });
+
+    // Search reviews by food name
+    app.get('/reviews/search', async (req, res) => {
+      try {
+        const foodName = req.query.foodName;
+        const reviews = await reviewCollection
+          .find({ foodName: { $regex: foodName, $options: 'i' } })
+          .toArray();
+        res.send(reviews);
+      } catch (err) {
+        res.status(500).send({ message: 'Search failed' });
+      }
+    });
+
     await client.db('admin').command({ ping: 1 });
     console.log('Connected to MongoDB successfully!');
   } finally {
