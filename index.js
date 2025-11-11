@@ -32,9 +32,19 @@ async function run() {
     const db = client.db('localfoodlovers');
     const reviewCollection = db.collection('reviews');
 
-   
+    // Get all reviews
+    app.get('/reviews', async (req, res) => {
+      try {
+        const reviews = await reviewCollection
+          .find()
+          .sort({ createdAt: -1 })
+          .toArray();
+        res.send(reviews);
+      } catch (err) {
+        res.status(500).send({ message: 'Failed to load reviews' });
+      }
+    });
 
-    
     await client.db('admin').command({ ping: 1 });
     console.log('Connected to MongoDB successfully!');
   } finally {
