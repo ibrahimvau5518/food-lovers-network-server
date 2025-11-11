@@ -111,6 +111,43 @@ async function run() {
       }
     });
 
+    // Update a review
+    app.patch('/reviews/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        const body = req.body;
+        const query = { _id: new ObjectId(id) };
+        const update = {
+          $set: {
+            foodName: body.foodName,
+            foodImage: body.foodImage,
+            restaurantName: body.restaurantName,
+            location: body.location,
+            rating: body.rating,
+            reviewText: body.reviewText,
+            reviewerName: body.reviewerName,
+            userEmail: body.userEmail,
+          },
+        };
+        const result = await reviewCollection.updateOne(query, update);
+        res.send(result);
+      } catch (err) {
+        res.status(500).send({ message: 'Failed to update review' });
+      }
+    });
+
+    // Delete a review
+    app.delete('/reviews/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await reviewCollection.deleteOne(query);
+        res.send(result);
+      } catch (err) {
+        res.status(500).send({ message: 'Failed to delete review' });
+      }
+    });
+
     await client.db('admin').command({ ping: 1 });
     console.log('Connected to MongoDB successfully!');
   } finally {
