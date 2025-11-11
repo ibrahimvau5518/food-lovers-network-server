@@ -45,6 +45,33 @@ async function run() {
       }
     });
 
+    // Get featured reviews (top 6 by rating)
+    app.get('/reviews/featured', async (req, res) => {
+      try {
+        const reviews = await reviewCollection
+          .find()
+          .sort({ rating: -1, createdAt: -1 })
+          .limit(6)
+          .toArray();
+        res.send(reviews);
+      } catch (err) {
+        res.status(500).send({ message: 'Failed to load featured reviews' });
+      }
+    });
+
+    // Get single review by id
+    app.get('/reviews/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        const review = await reviewCollection.findOne({
+          _id: new ObjectId(id),
+        });
+        res.send(review);
+      } catch (err) {
+        res.status(500).send({ message: 'Error fetching review' });
+      }
+    });
+
     await client.db('admin').command({ ping: 1 });
     console.log('Connected to MongoDB successfully!');
   } finally {
