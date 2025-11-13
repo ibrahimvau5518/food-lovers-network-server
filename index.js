@@ -21,7 +21,7 @@ const client = new MongoClient(uri, {
   },
 });
 
-// root route
+// Root route
 app.get('/', (req, res) => {
   res.send('Food Review Server is running');
 });
@@ -31,6 +31,7 @@ async function run() {
     await client.connect();
     const db = client.db('localfoodlovers');
     const reviewCollection = db.collection('reviews');
+    const favoritesCollection = db.collection('favorites');
 
     // Get all reviews
     app.get('/reviews', async (req, res) => {
@@ -59,7 +60,34 @@ async function run() {
       }
     });
 
-    // Get single review by id
+    // Search reviews by food name
+    app.get('/reviews/search', async (req, res) => {
+      try {
+        const foodName = req.query.foodName;
+
+        if (!foodName || !foodName.trim()) {
+          const allReviews = await reviewCollection
+            .find()
+            .sort({ createdAt: -1 })
+            .toArray();
+          return res.send(allReviews);
+        }
+
+        const safeRegex = foodName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        const reviews = await reviewCollection
+          .find({ foodName: { $regex: safeRegex, $options: 'i' } })
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.send(reviews);
+      } catch (err) {
+        console.error('Error in /reviews/search:', err);
+        res.status(500).send({ message: 'Search failed', error: err.message });
+      }
+    });
+
+    // Get single review by ID
     app.get('/reviews/:id', async (req, res) => {
       try {
         const id = req.params.id;
@@ -83,19 +111,6 @@ async function run() {
         res.send(reviews);
       } catch (err) {
         res.status(500).send({ message: 'Error fetching user reviews' });
-      }
-    });
-
-    // Search reviews by food name
-    app.get('/reviews/search', async (req, res) => {
-      try {
-        const foodName = req.query.foodName;
-        const reviews = await reviewCollection
-          .find({ foodName: { $regex: foodName, $options: 'i' } })
-          .toArray();
-        res.send(reviews);
-      } catch (err) {
-        res.status(500).send({ message: 'Search failed' });
       }
     });
 
@@ -148,9 +163,75 @@ async function run() {
       }
     });
 
-    await client.db('admin').command({ ping: 1 });
+    // Add to favorites
+    app.post('/favorites', async (req, res) => {
+      try {
+        const favorite = req.body;
+
+        if (!favorite.userEmail || !favorite.reviewId) {
+          return res.status(400).send({ message: 'Missing required fields' });
+        }
+
+        const existing = await favoritesCollection.findOne({
+          userEmail: favorite.userEmail,
+          reviewId: favorite.reviewId,
+        });
+
+        if (existing) {
+          return res.status(409).send({ message: 'Already in favorites' });
+        }
+
+        const result = await favoritesCollection.insertOne(favorite);
+        res.send(result);
+      } catch (err) {
+        console.error('Error adding favorite:', err);
+        res.status(500).send({ message: 'Failed to add favorite' });
+      }
+    });
+
+    // Get all favorites for a user (with review details)
+    app.get('/favorites/:email', async (req, res) => {
+      try {
+        const email = req.params.email;
+        const favorites = await favoritesCollection
+          .find({ userEmail: email })
+          .toArray();
+
+        const reviewIds = favorites.map(fav => new ObjectId(fav.reviewId));
+        const reviews = await reviewCollection
+          .find({ _id: { $in: reviewIds } })
+          .toArray();
+
+        const mergedFavorites = favorites.map(fav => ({
+          ...fav,
+          review: reviews.find(r => r._id.toString() === fav.reviewId),
+        }));
+
+        res.send(mergedFavorites);
+      } catch (err) {
+        console.error('Error fetching favorites:', err);
+        res.status(500).send({ message: 'Failed to fetch favorites' });
+      }
+    });
+
+    // Remove from favorites
+    app.delete('/favorites/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        const result = await favoritesCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+        res.send(result);
+      } catch (err) {
+        console.error('Error removing favorite:', err);
+        res.status(500).send({ message: 'Failed to remove favorite' });
+      }
+    });
+
+    // await client.db('admin').command({ ping: 1 });
     console.log('Connected to MongoDB successfully!');
-  } finally {
+  } catch (error) {
+    console.error('Error connecting to MongoDB:', error);
   }
 }
 
