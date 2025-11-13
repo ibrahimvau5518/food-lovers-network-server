@@ -10,8 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB setup
-const uri =
-  'mongodb+srv://foodDbUser:4EyC0a3vijpltGtg@cluster0.4rgvatj.mongodb.net/?appName=Cluster0';
+const uri = process.env.MONGO_URI;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -237,6 +236,8 @@ async function run() {
 
 run().catch(console.dir);
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+// app.listen(port, () => {
+//   console.log(`Server is running on port ${port}`);
+// });
+
+module.exports = app;
